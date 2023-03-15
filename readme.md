@@ -1,3 +1,4 @@
+do not use it
 
 ### TavernAI is a adventure atmospheric chat (KoboldAI, NovelAI, Pygmalion)
 Examples of interface and output:
