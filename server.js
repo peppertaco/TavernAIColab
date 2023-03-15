@@ -3,6 +3,7 @@ var app = express();
 var fs = require('fs');
 const readline = require('readline');
 const open = require('open');
+const axios = require('axios');
 
 var rimraf = require("rimraf");
 const multer  = require("multer");
@@ -12,13 +13,14 @@ const extract = require('png-chunks-extract');
 const encode = require('png-chunks-encode');
 const PNGtext = require('png-chunk-text');
 
-const sharp = require('sharp');
-sharp.cache(false);
+const jimp = require('jimp');
 const path = require('path');
 
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const ipaddr = require('ipaddr.js');
+
+const tiktoken = require('@dqbd/tiktoken');
 
 const config = require(path.join(process.cwd(), './config.conf'));
 const server_port = config.port;
@@ -123,7 +125,7 @@ app.use(function (req, res, next) { //Security
 
 app.use((req, res, next) => {
   if (req.url.startsWith('/characters/') && is_colab && process.env.googledrive == 2) {
-      
+
     const filePath = path.join(charactersPath, decodeURIComponent(req.url.substr('/characters'.length)));
     fs.access(filePath, fs.constants.R_OK, (err) => {
       if (!err) {
@@ -406,7 +408,7 @@ app.post("/createcharacter", urlencodedParser, function(request, response){
     if(!request.body) return response.sendStatus(400);
     if (!fs.existsSync(charactersPath+request.body.ch_name+'.png')){
         if(!fs.existsSync(chatsPath+request.body.ch_name) )fs.mkdirSync(chatsPath+request.body.ch_name);
-
+        
         let filedata = request.file;
         //console.log(filedata.mimetype);
         var fileType = ".png";
@@ -452,7 +454,7 @@ app.post("/editcharacter", urlencodedParser, function(request, response){
     var char = charaFormatData(request.body);//{"name": request.body.ch_name, "description": request.body.description, "personality": request.body.personality, "first_mes": request.body.first_mes, "avatar": request.body.avatar_url, "chat": request.body.chat, "last_mes": request.body.last_mes, "mes_example": ''};
     char.chat = request.body.chat;
     char.create_date = request.body.create_date;
-
+    
     char = JSON.stringify(char);
     let target_img = (request.body.avatar_url).replace('.png', '');
     if(!filedata){
@@ -492,14 +494,17 @@ app.post("/deletecharacter", urlencodedParser, function(request, response){
 
 async function charaWrite(img_url, data, target_img, response = undefined, mes = 'ok'){
     try {
-        // Load the image in any format
-        sharp.cache(false);
-        var image = await sharp(img_url).resize(400, 600).toFormat('png').toBuffer();// old 170 234
-        // Convert the image to PNG format
-        //const pngImage = image.toFormat('png');
-
-        // Resize the image to 100x100
-        //const resizedImage = pngImage.resize(100, 100);
+        // Read the image, resize, and save it as a PNG into the buffer
+        let image = null;
+        await jimp.read(img_url).then(img => {
+            return img
+                .resize(400, 600)
+                .getBufferAsync(jimp.MIME_PNG);
+        }).then(data => {
+            image = data;
+        }).catch(err => {
+            throw err;
+        });
 
         // Get the chunks
         var chunks = extract(image);
@@ -529,7 +534,6 @@ async function charaWrite(img_url, data, target_img, response = undefined, mes =
 
 
 function charaRead(img_url){
-    sharp.cache(false);
     const buffer = fs.readFileSync(img_url);
     const chunks = extract(buffer);
      
@@ -539,7 +543,6 @@ function charaRead(img_url){
         //console.log(text.decode(chunk.data));
       return PNGtext.decode(chunk.data);
     });
-    console.log(img_url);
     var base64DecodedData = Buffer.from(textChunks[0].text, 'base64').toString('utf8');
     return base64DecodedData;//textChunks[0].text;
     //console.log(textChunks[0].keyword); // 'hello'
@@ -1003,53 +1006,127 @@ app.post("/getstatus_openai", jsonParser, function(request, response_getstatus_o
     });
 });
 
-
-
 app.post("/generate_openai", jsonParser, function(request, response_generate_openai = response){
     if(!request.body) return response_generate_openai.sendStatus(400);
 
     console.log(request.body);
-    var data = {
-        "messages": request.body.messages,
-        "model": request.body.model, // TODO REPLACED HERE
-        "temperature": request.body.temperature,
-        "max_tokens": request.body.max_tokens,
-        "presence_penalty": request.body.presence_penalty,
-        "frequency_penalty": request.body.frequency_penalty
+    var config = {
+        method: 'post',
+        url: api_openai + '/chat/completions',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + api_key_openai
+        },
+        data: {
+            "messages": request.body.messages,
+            "model": request.body.model,
+            "temperature": request.body.temperature,
+            "max_tokens": request.body.max_tokens,
+            "stream": request.body.stream,
+            "presence_penalty": request.body.presence_penalty,
+            "frequency_penalty": request.body.frequency_penalty,
+            "stop": request.body.stop
+        }
     };
-                        
-    var args = {
-        data: data,
-        
-        headers: { "Content-Type": "application/json",  "Authorization": "Bearer "+api_key_openai}
-    };
-    client.post(api_openai+"/chat/completions",args, function (data, response) {
-        console.log(data);
-        if(response.statusCode <= 299){
-            console.log(data);
-            response_generate_openai.send(data);
+
+    if (request.body.stream)
+        config.responseType = 'stream';
+
+    axios(config)
+        .then(function (response) {
+            if (response.status <= 299) {
+                if (request.body.stream) {
+                    console.log("Streaming request in progress")
+                    response.data.pipe(response_generate_openai);
+                    response.data.on('end', function () {
+                        console.log("Streaming request finished");
+                        response_generate_openai.end();
+                    });
+                } else {
+                    console.log(response.data);
+                    response_generate_openai.send(response.data);
+                }
+            } else if (response.status == 400) {
+                console.log('Validation error');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 401) {
+                console.log('Access Token is incorrect');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 402) {
+                console.log('An active subscription is required to access this endpoint');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 500 || response.status == 409) {
+                if (request.body.stream) {
+                    response.data.on('data', chunk => {
+                        console.log(chunk.toString());
+                    });                  
+                } else {
+                    console.log(response.data);
+                }
+                response_generate_openai.send({ error: true });
+            }
+        })
+        .catch(function (error) {
+            if(error.response){
+                if (request.body.stream) {
+                    error.response.data.on('data', chunk => {
+                        console.log(chunk.toString());
+                    });                  
+                } else {
+                    console.log(error.response.data);
+                }
+            }
+            response_generate_openai.send({ error: true });
+        });
+});
+
+const turbo_encoder = tiktoken.get_encoding("cl100k_base");
+
+// js port of https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
+// section 6
+function count_tokens(encoding, messages) {
+    let num_tokens = 0;
+    for (var msg of request.body) {
+        num_tokens += 4;
+        for (const [key, value] of Object.entries(msg)) {
+            num_tokens += encoding.encode(value).length;
+            if (key == "name") {
+                num_tokens += -1;
+            }
         }
-        if(response.statusCode == 400){
-            console.log('Validation error');
-            response_generate_openai.send({error: true});
+    }
+    num_tokens += 2;
+    return num_tokens;
+}
+
+/*
+var test_messages = [
+    {"role": "system", "content": "You are a helpful, pattern-following assistant that translates corporate jargon into plain English."},
+    {"role": "system", "name":"example_user", "content": "New synergies will help drive top-line growth."},
+    {"role": "system", "name": "example_assistant", "content": "Things working well together will increase revenue."},
+    {"role": "system", "name":"example_user", "content": "Let's circle back when we have more bandwidth to touch base on opportunities for increased leverage."},
+    {"role": "system", "name": "example_assistant", "content": "Let's talk later when we're less busy about how to do better."},
+    {"role": "user", "content": "This late pivot means we don't have time to boil the ocean for the client deliverable."},
+];
+console.log(count_tokens(turbo_encoder, test_messages));
+*/
+
+app.post("/tokenize_openai", jsonParser, function(request, response_tokenize_openai = response){
+    if(!request.body) return response_tokenize_openai.sendStatus(400);
+
+    let num_tokens = 0;
+    for (var msg of request.body) {
+        num_tokens += 4;
+        for (const [key, value] of Object.entries(msg)) {
+            num_tokens += turbo_encoder.encode(value).length;
+            if (key == "name") {
+                num_tokens += -1;
+            }
         }
-        if(response.statusCode == 401){
-            console.log('Access Token is incorrect');
-            response_generate_openai.send({error: true});
-        }
-        if(response.statusCode == 402){
-            console.log('An active subscription is required to access this endpoint');
-            response_generate_openai.send({error: true});
-        }
-        if(response.statusCode == 500 || response.statusCode == 409){
-            console.log(data);
-            response_generate_openai.send({error: true});
-        }
-    }).on('error', function (err) {
-        //console.log('');
-	//console.log('something went wrong on the request', err.request.options);
-        response_getstatus.send({error: true});
-    });
+    }
+    num_tokens += 2;
+    
+    response_tokenize_openai.send({"token_count": num_tokens});
 });
 
 function getPngName(file){
@@ -1239,7 +1316,7 @@ app.listen(server_port, function() {
         }
     }
     console.log('Launching...');
-    if(autorun) open('http:127.0.0.1:'+server_port);
+    if(autorun) open('http://127.0.0.1:'+server_port);
     console.log('TavernAI started: http://127.0.0.1:'+server_port);
     if (fs.existsSync('public/characters/update.txt') && !is_colab) {
         convertStage1();
