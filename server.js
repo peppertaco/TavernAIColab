@@ -3,6 +3,7 @@ var app = express();
 var fs = require('fs');
 const readline = require('readline');
 const open = require('open');
+const axios = require('axios');
 
 var rimraf = require("rimraf");
 const multer  = require("multer");
@@ -12,13 +13,14 @@ const extract = require('png-chunks-extract');
 const encode = require('png-chunks-encode');
 const PNGtext = require('png-chunk-text');
 
-const sharp = require('sharp');
-sharp.cache(false);
+const jimp = require('jimp');
 const path = require('path');
 
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const ipaddr = require('ipaddr.js');
+
+const tiktoken = require('@dqbd/tiktoken');
 
 const config = require(path.join(process.cwd(), './config.conf'));
 const server_port = config.port;
@@ -36,11 +38,13 @@ var api_server = "";//"http://127.0.0.1:5000";
 
 var api_novelai = "https://api.novelai.net";
 var api_openai = "https://api.openai.com/v1";
+var api_scale = "https://dashboard.scale.com/spellbook/api/v2/deploy/q64278n";
 
 var response_get_story;
 var response_generate;
 var response_generate_novel;
 var response_generate_openai;
+var response_generate_scale;
 var request_promt;
 var response_promt;
 var characters = {};
@@ -51,9 +55,11 @@ var response_dw_bg;
 var response_getstatus;
 var response_getstatus_novel;
 var response_getstatus_openai;
+var response_getstatus_scale;
 var response_getlastversion;
 var api_key_novel;
 var api_key_openai;
+var api_key_scale = "clfbo9iia00a6un1a5pp5s2mz";
 
 var is_colab = true;
 var charactersPath = 'public/characters/';
@@ -123,7 +129,7 @@ app.use(function (req, res, next) { //Security
 
 app.use((req, res, next) => {
   if (req.url.startsWith('/characters/') && is_colab && process.env.googledrive == 2) {
-      
+
     const filePath = path.join(charactersPath, decodeURIComponent(req.url.substr('/characters'.length)));
     fs.access(filePath, fs.constants.R_OK, (err) => {
       if (!err) {
@@ -174,6 +180,8 @@ app.get("/notes/*", function(request, response){
     //response.send("<h1>Главная страница</h1>");
 });
 app.post("/getlastversion", jsonParser, function(request, response_getlastversion = response){
+  // disabled because it seems to be broken
+  return response_getlastversion.send({version: '0.0.0'});
     if(!request.body) return response_getlastversion.sendStatus(400);
     
     const repo = 'TavernAI/TavernAI';
@@ -406,7 +414,7 @@ app.post("/createcharacter", urlencodedParser, function(request, response){
     if(!request.body) return response.sendStatus(400);
     if (!fs.existsSync(charactersPath+request.body.ch_name+'.png')){
         if(!fs.existsSync(chatsPath+request.body.ch_name) )fs.mkdirSync(chatsPath+request.body.ch_name);
-
+        
         let filedata = request.file;
         //console.log(filedata.mimetype);
         var fileType = ".png";
@@ -452,7 +460,7 @@ app.post("/editcharacter", urlencodedParser, function(request, response){
     var char = charaFormatData(request.body);//{"name": request.body.ch_name, "description": request.body.description, "personality": request.body.personality, "first_mes": request.body.first_mes, "avatar": request.body.avatar_url, "chat": request.body.chat, "last_mes": request.body.last_mes, "mes_example": ''};
     char.chat = request.body.chat;
     char.create_date = request.body.create_date;
-
+    
     char = JSON.stringify(char);
     let target_img = (request.body.avatar_url).replace('.png', '');
     if(!filedata){
@@ -492,14 +500,17 @@ app.post("/deletecharacter", urlencodedParser, function(request, response){
 
 async function charaWrite(img_url, data, target_img, response = undefined, mes = 'ok'){
     try {
-        // Load the image in any format
-        sharp.cache(false);
-        var image = await sharp(img_url).resize(400, 600).toFormat('png').toBuffer();// old 170 234
-        // Convert the image to PNG format
-        //const pngImage = image.toFormat('png');
-
-        // Resize the image to 100x100
-        //const resizedImage = pngImage.resize(100, 100);
+        // Read the image, resize, and save it as a PNG into the buffer
+        let image = null;
+        await jimp.read(img_url).then(img => {
+            return img
+                .resize(400, 600)
+                .getBufferAsync(jimp.MIME_PNG);
+        }).then(data => {
+            image = data;
+        }).catch(err => {
+            throw err;
+        });
 
         // Get the chunks
         var chunks = extract(image);
@@ -529,7 +540,6 @@ async function charaWrite(img_url, data, target_img, response = undefined, mes =
 
 
 function charaRead(img_url){
-    sharp.cache(false);
     const buffer = fs.readFileSync(img_url);
     const chunks = extract(buffer);
      
@@ -539,7 +549,6 @@ function charaRead(img_url){
         //console.log(text.decode(chunk.data));
       return PNGtext.decode(chunk.data);
     });
-    console.log(img_url);
     var base64DecodedData = Buffer.from(textChunks[0].text, 'base64').toString('utf8');
     return base64DecodedData;//textChunks[0].text;
     //console.log(textChunks[0].keyword); // 'hello'
@@ -690,6 +699,8 @@ app.post('/getsettings', jsonParser, (request, response) => { //Wintermute's cod
     const novelai_setting_names = [];
     const openai_settings = [];
     const openai_setting_names = [];
+    const scale_settings = [];
+    const scale_setting_names = [];
     const settings = fs.readFileSync('public/settings.json', 'utf8',  (err, data) => {
     if (err) return response.sendStatus(500);
 
@@ -766,6 +777,33 @@ app.post('/getsettings', jsonParser, (request, response) => { //Wintermute's cod
           openai_setting_names.push(item.replace(/\.[^/.]+$/, ''));
       });
     
+    //scale
+    if (!fs.existsSync('public/Scale Settings')) {
+        fs.mkdirSync('public/Scale Settings');
+    }
+    const files4 = fs
+    .readdirSync('public/Scale Settings')
+    .sort(
+        (a, b) =>
+        new Date(fs.statSync(`public/Scale Settings/${b}`).mtime) -
+        new Date(fs.statSync(`public/Scale Settings/${a}`).mtime)
+    );
+    
+    files4.forEach(item => {
+    const files4 = fs.readFileSync(
+        `public/Scale Settings/${item}`,
+        'utf8',
+        (err, data) => {
+            if (err) return response.sendStatus(500);
+
+            return data;
+        }
+    );
+
+        scale_settings.push(files4);
+        scale_setting_names.push(item.replace(/\.[^/.]+$/, ''));
+    });
+    
       
     response.send({
         settings,
@@ -774,7 +812,9 @@ app.post('/getsettings', jsonParser, (request, response) => { //Wintermute's cod
         novelai_settings,
         novelai_setting_names,
         openai_settings,
-        openai_setting_names
+        openai_setting_names,
+        scale_settings,
+        scale_setting_names
     });
 });
 
@@ -975,6 +1015,60 @@ app.post("/getallchatsofchatacter", jsonParser, function(request, response){
     
 });
 
+app.post("/getstatus_scale", jsonParser, function(request, response_getstatus_scale = response){
+    console.log("getstatus_scale", request.body);
+    if(!request.body) return response_getstatus_scale.sendStatus(400);
+    api_key_scale = request.body.key;
+    api_url_scale = request.body.url;
+    var args = {
+        headers: { "Authorization": "Basic "+ api_key_scale }
+    };
+    client.post(api_url_scale,args, function (data, response) {
+        console.log("authing with", api_url_scale);
+        console.log("getstatus_scale response code: ", response.statusCode);
+        console.log("getstatus_scale response data:", data);
+        console.log("you may see response an 'invalid_type' error, that's probably okay");
+        console.log("if you see another error, that's probably not okay");
+        
+        // Scale doesn't really have any way to check status so if this doesn't 
+        // emit an error, we can only assume it's authed
+        
+        if (response.statusCode == 400 || response.statusCode == 200) {
+            response_getstatus_scale.send({ ok: true });
+        }
+        else {
+            response_getstatus_scale.send({ error: true });
+        }
+        
+        // if(response.statusCode == 200){
+        //     console.log(data);
+        //     response_getstatus_scale.send(data);//data);
+        // }
+        // if (response.statusCode == 400) {
+        //   if (data[0].code === 'invalid_type' && data[0].expected === 'object' && data[0].received === 'undefined') {
+        //     console.log('Scale is authed');
+        //     // send 200 back so the client knows we're authed
+        //     response_getstatus_scale.send({ok: true});
+        //   } else {
+        //     console.log('Validation error', data);
+        //     response_getstatus_scale.send({error: true});
+        //   }
+        // }
+        // if(response.statusCode == 401){
+        //     console.log('Access Token is incorrect.', data);
+        //     response_getstatus_scale.send({error: true});
+        // }
+        // if(response.statusCode == 500 || response.statusCode == 501 || response.statusCode == 501 || response.statusCode == 503 || response.statusCode == 507){
+        //     console.log(data);
+        //     response_getstatus_scale.send({error: true});
+        // }
+    }).on('error', function (err) {
+        console.log('');
+	      console.log('something went wrong on the request', err.request.options);
+        response_getstatus_scale.send({error: true});
+    });
+});
+
 //***********Open.ai API 
 
 app.post("/getstatus_openai", jsonParser, function(request, response_getstatus_openai = response){
@@ -989,7 +1083,7 @@ app.post("/getstatus_openai", jsonParser, function(request, response_getstatus_o
             response_getstatus_openai.send(data);//data);
         }
         if(response.statusCode == 401){
-            console.log('Access Token is incorrect.');
+            console.log('Access Token is incorrect (openAI).', data);
             response_getstatus_openai.send({error: true});
         }
         if(response.statusCode == 500 || response.statusCode == 501 || response.statusCode == 501 || response.statusCode == 503 || response.statusCode == 507){
@@ -1003,53 +1097,200 @@ app.post("/getstatus_openai", jsonParser, function(request, response_getstatus_o
     });
 });
 
-
+app.post("/generate_scale", jsonParser, function(request, response_generate_scale = response) {
+   if (!request.body) return response_generate_scale.sendStatus(400);
+   
+   console.log(request.body);
+   
+   // flatten OpenAI chat completion payload into a single string for Scale
+    var messagePayload = [];
+    request.body.messages.forEach(m => {
+      if (m.role === 'system') {
+        messagePayload.push("System: " + m.content);
+      } else {
+        messagePayload.push(m.role + ": " + m.content);
+      }
+    });
+   
+    console.log("sending request to", api_url_scale);
+   var config = {
+     method: "post",
+     url: api_url_scale,
+     headers: {
+       "Content-Type": "application/json",
+       Authorization: "Basic " + api_key_scale,
+     },
+     data: {
+       input: { input: messagePayload.join("\n") },
+     },
+   };
+   
+   axios(config)
+   .then(function (response) {
+       console.log("generate_scale response", response.status);
+       if (response.status <= 299) {
+            console.log(response.data);
+            response_generate_scale.send(response.data);
+       } else if (response.status == 400) {
+            console.log('Validation error');
+            response_generate_scale.send({ error: true });
+       } else if (response.status == 401) {
+            console.log('Access Token is incorrect');
+            response_generate_scale.send({ error: true });
+       } else if (response.status == 402) {
+            console.log('An active subscription is required to access this endpoint');
+            response_generate_scale.send({ error: true });
+       } else if (response.status == 500 || response.status == 409) {
+            console.log(response.data);
+            response_generate_scale.send({ error: true });
+       }
+   })
+   .catch(function (error) {
+       if(error.response){
+           if (request.body.stream) {
+               error.response.data.on('data', chunk => {
+                   console.log(chunk.toString());
+               });                  
+           } else {
+                console.log("generate_scale promise rejected");
+                console.log({
+                    message: error.message,
+                    method: error.config.method,
+                    code: error.code,
+                    status: error.response.status,
+                    url: error.config.url,
+                    headers: error.config.headers,
+                })
+                console.log("response headers:", JSON.stringify(error.response.headers, null, 2));
+                console.log("response data:", error.response.data);
+           }
+       }
+       response_generate_scale.send({ error: true });
+   });
+});
 
 app.post("/generate_openai", jsonParser, function(request, response_generate_openai = response){
     if(!request.body) return response_generate_openai.sendStatus(400);
 
     console.log(request.body);
-    var data = {
-        "messages": request.body.messages,
-        "model": request.body.model, // TODO REPLACED HERE
-        "temperature": request.body.temperature,
-        "max_tokens": request.body.max_tokens,
-        "presence_penalty": request.body.presence_penalty,
-        "frequency_penalty": request.body.frequency_penalty
+    var config = {
+        method: 'post',
+        url: api_openai + '/chat/completions',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + api_key_openai
+        },
+        data: {
+            "messages": request.body.messages,
+            "model": request.body.model,
+            "temperature": request.body.temperature,
+            "max_tokens": request.body.max_tokens,
+            "stream": request.body.stream,
+            "presence_penalty": request.body.presence_penalty,
+            "frequency_penalty": request.body.frequency_penalty,
+            "stop": request.body.stop,
+            "logit_bias": request.body.logit_bias
+        }
     };
-                        
-    var args = {
-        data: data,
-        
-        headers: { "Content-Type": "application/json",  "Authorization": "Bearer "+api_key_openai}
-    };
-    client.post(api_openai+"/chat/completions",args, function (data, response) {
-        console.log(data);
-        if(response.statusCode <= 299){
-            console.log(data);
-            response_generate_openai.send(data);
+
+    if (request.body.stream)
+        config.responseType = 'stream';
+
+    axios(config)
+        .then(function (response) {
+            if (response.status <= 299) {
+                if (request.body.stream) {
+                    console.log("Streaming request in progress")
+                    response.data.pipe(response_generate_openai);
+                    response.data.on('end', function () {
+                        console.log("Streaming request finished");
+                        response_generate_openai.end();
+                    });
+                } else {
+                    console.log(response.data);
+                    response_generate_openai.send(response.data);
+                }
+            } else if (response.status == 400) {
+                console.log('Validation error');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 401) {
+                console.log('Access Token is incorrect');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 402) {
+                console.log('An active subscription is required to access this endpoint');
+                response_generate_openai.send({ error: true });
+            } else if (response.status == 500 || response.status == 409) {
+                if (request.body.stream) {
+                    response.data.on('data', chunk => {
+                        console.log(chunk.toString());
+                    });                  
+                } else {
+                    console.log(response.data);
+                }
+                response_generate_openai.send({ error: true });
+            }
+        })
+        .catch(function (error) {
+            if(error.response){
+                if (request.body.stream) {
+                    error.response.data.on('data', chunk => {
+                        console.log(chunk.toString());
+                    });                  
+                } else {
+                    console.log(error.response.data);
+                }
+            }
+            response_generate_openai.send({ error: true });
+        });
+});
+
+const turbo_encoder = tiktoken.get_encoding("cl100k_base");
+
+// js port of https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
+// section 6
+function count_tokens(encoding, messages) {
+    let num_tokens = 0;
+    for (var msg of request.body) {
+        num_tokens += 4;
+        for (const [key, value] of Object.entries(msg)) {
+            num_tokens += encoding.encode(value).length;
+            if (key == "name") {
+                num_tokens += -1;
+            }
         }
-        if(response.statusCode == 400){
-            console.log('Validation error');
-            response_generate_openai.send({error: true});
+    }
+    num_tokens += 2;
+    return num_tokens;
+}
+
+/*
+var test_messages = [
+    {"role": "system", "content": "You are a helpful, pattern-following assistant that translates corporate jargon into plain English."},
+    {"role": "system", "name":"example_user", "content": "New synergies will help drive top-line growth."},
+    {"role": "system", "name": "example_assistant", "content": "Things working well together will increase revenue."},
+    {"role": "system", "name":"example_user", "content": "Let's circle back when we have more bandwidth to touch base on opportunities for increased leverage."},
+    {"role": "system", "name": "example_assistant", "content": "Let's talk later when we're less busy about how to do better."},
+    {"role": "user", "content": "This late pivot means we don't have time to boil the ocean for the client deliverable."},
+];
+console.log(count_tokens(turbo_encoder, test_messages));
+*/
+
+app.post("/tokenize_openai", jsonParser, function(request, response_tokenize_openai = response){
+    if(!request.body) return response_tokenize_openai.sendStatus(400);
+
+    let num_tokens = 0;
+    for (var msg of request.body) {
+        num_tokens += 4;
+        for (const [key, value] of Object.entries(msg)) {
+            num_tokens += turbo_encoder.encode(value).length;
+            if (key == "name") {
+                num_tokens += -1;
+            }
         }
-        if(response.statusCode == 401){
-            console.log('Access Token is incorrect');
-            response_generate_openai.send({error: true});
-        }
-        if(response.statusCode == 402){
-            console.log('An active subscription is required to access this endpoint');
-            response_generate_openai.send({error: true});
-        }
-        if(response.statusCode == 500 || response.statusCode == 409){
-            console.log(data);
-            response_generate_openai.send({error: true});
-        }
-    }).on('error', function (err) {
-        //console.log('');
-	//console.log('something went wrong on the request', err.request.options);
-        response_getstatus.send({error: true});
-    });
+    }
+    num_tokens += 2;
+    
+    response_tokenize_openai.send({"token_count": num_tokens});
 });
 
 function getPngName(file){
@@ -1239,7 +1480,7 @@ app.listen(server_port, function() {
         }
     }
     console.log('Launching...');
-    if(autorun) open('http:127.0.0.1:'+server_port);
+    if(autorun) open('http://127.0.0.1:'+server_port);
     console.log('TavernAI started: http://127.0.0.1:'+server_port);
     if (fs.existsSync('public/characters/update.txt') && !is_colab) {
         convertStage1();
