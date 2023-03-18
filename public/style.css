@@ -380,6 +380,18 @@ textarea{
     margin-top: 0px;
     border-radius: 10px;
 }
+#memory_textarea{
+    width: 92%;
+    height: 140px;
+    margin-top: 0px;
+    border-radius: 10px;
+}
+#authors_note_textarea{
+    width: 92%;
+    height: 140px;
+    margin-top: 0px;
+    border-radius: 10px;
+}
 
 .text_pole{
     border: 2px solid rgb(60, 60, 60);

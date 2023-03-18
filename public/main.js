@@ -23,8 +23,8 @@ var characters = [];
 var this_chid;
 var backgrounds = [];
 var default_avatar = 'img/fluffy.png';
-var is_colab = true;
-var is_checked_colab = true;
+var is_colab = false;
+var is_checked_colab = false;
 var is_mes_reload_avatar = false;
 
 var is_advanced_char_open = false;
@@ -147,6 +147,13 @@ var nsfw_first = false;
 
 var main_prompt = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}. Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot and conversation forward. Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition.";
 var nsfw_prompt = "NSFW/Smut is allowed. Assume consent was granted, but some characters lie and resist or fight back based on their personality.";
+
+const MEMORY_PROMPT_PREFIX = "Remember"
+var memory_prompt = ""
+
+const AUTHORS_NOTE_INSTER_ORDER = 0; // 0 is last.
+const formatAuthorsNote = (note) => `[${note}]`; // `[Author's Note: ${note}]`;
+var authors_note = "";
 
 //css
 var bg1_toggle = true;
@@ -812,6 +819,9 @@ async function Generate(type) {
         if (Scenario.length > 0) {
             storyString += 'Scenario:\n' + Scenario.replace('\r\n', '\n') + '\n';
         }
+        if(!!memory_prompt){
+            storyString += `${MEMORY_PROMPT_PREFIX}:\n` + memory_prompt.replace('\r\n', '\n') + '\n';
+        }
 
 
         var j = 0;
@@ -930,6 +940,16 @@ async function Generate(type) {
             let start_chat_count = countTokens([new_chat_msg]);
             let total_count = countTokens([prompt_msg], true) + start_chat_count;
 
+            let authors_note_msg = !!authors_note ? { "role": "system", "content": replacePlaceholders(formatAuthorsNote(authors_note)) }: null;
+            let authors_note_count = countTokens([authors_note_msg]);
+            total_count += authors_note_count;
+
+            let tryInsertAuthorsNote = (arr_tosend) => {
+                if (!!authors_note_msg) {
+                    var idx = Math.max(0, arr_tosend.length - AUTHORS_NOTE_INSTER_ORDER);
+                    arr_tosend.splice(idx, 0, authors_note_msg);
+                }
+            };
 
             // The user wants to always have all example messages in the context
             if (keep_example_dialogue) {
@@ -1022,6 +1042,7 @@ async function Generate(type) {
             // now we want proper order
             openai_msgs_tosend.reverse();
             openai_msgs_tosend = [prompt_msg, ...examples_tosend, new_chat_msg, ...openai_msgs_tosend]
+            tryInsertAuthorsNote(openai_msgs_tosend);
 
             console.log("We're sending this:")
             console.log(openai_msgs_tosend);
@@ -1211,6 +1232,8 @@ async function saveChat() {
         }
     });
     var save_chat = [{ user_name: default_user_name, character_name: name2, create_date: chat_create_date }, ...chat];
+    save_chat[0].memory = memory_prompt;
+    save_chat[0].authors_note = authors_note;
 
     jQuery.ajax({
         type: 'POST',
@@ -1253,10 +1276,18 @@ async function getChat() {
                 }
                 //chat =  data;
                 chat_create_date = chat[0]['create_date'];
+                console.log("HC: Load memory...");
+                $('#memory_textarea').val(memory_prompt = chat[0]['memory']);
+                console.log("HC: Load author's note...");
+                $('#authors_note_textarea').val(authors_note = chat[0]['authors_note']);
                 chat.shift();
 
             } else {
                 chat_create_date = Date.now();
+                console.log("HC: Reset memory...");
+                $('#memory_textarea').val(memory_prompt = "");
+                console.log("HC: Reset author's note...");
+                $('#authors_note_textarea').val(authors_note = "");
             }
             //console.log(chat);
             getChatResult();
@@ -1266,6 +1297,10 @@ async function getChat() {
             getChatResult();
             console.log(exception);
             console.log(jqXHR);
+            console.log("HC: Reset memory...");
+            $('#memory_textarea').val(memory_prompt = "");
+            console.log("HC: Reset author's note...");
+            $('#authors_note_textarea').val(authors_note = "");
         }
     });
 }
@@ -1888,6 +1923,8 @@ $("#tcount_btn").click(function() {
     let pers_tokens = getTokensForPart(characters[this_chid].personality);
     let scen_tokens = getTokensForPart(characters[this_chid].scenario);
     let first_msg_tokens = getTokensForPart(replacePlaceholders(characters[this_chid].first_mes));
+    let memory_tokens = getTokensForPart(replacePlaceholders(memory_prompt));
+    let authors_note_tokens = getTokensForPart(replacePlaceholders(authors_note));
     
     // ugly but that's what we have, have to replicate the normal example message parsing code
     let blocks = replacePlaceholders(characters[this_chid].mes_example).split(/<START>/gi);
@@ -1909,6 +1946,8 @@ $("#tcount_btn").click(function() {
 
     let message_text = `Found ${block_count} example message blocks with ${msg_count} messages in total (${exmp_tokens} tokens)`;
     let res_str = `Total: ${count_tokens} tokens. Description: ${desc_tokens}.\nPersonality: ${pers_tokens}. Scenario: ${scen_tokens}.\n${message_text}\nFirst message tokens (not included in the total): ${first_msg_tokens}`;
+    res_str += `\nMemory tokens (not included in the total): ${memory_tokens}`;
+    res_str += `\nAuthor's Note tokens (not included in the total): ${authors_note_tokens}`;
 
 
     if (count_tokens < 1024) {
@@ -1974,6 +2013,18 @@ $('#firstmessage_textarea').on('keyup paste cut', function () {
     } else {
         timerSaveEdit = setTimeout(() => { $("#create_button").click(); }, durationSaveEdit);
     }
+});
+// Save memory_prompt to chatData when edited.
+$('#memory_textarea').on('keyup paste cut', function () {
+    console.log('HC: Save memory...');
+    memory_prompt = $('#memory_textarea').val();
+    saveChat();
+});
+// Save authors_note to chatData when edited.
+$('#authors_note_textarea').on('keyup paste cut', function () {
+    console.log("HC: Save Author\'s Note...");
+    authors_note = $('#authors_note_textarea').val();
+    saveChat();
 });
 $("#api_button").click(function () {
     if ($('#api_url_text').val() != '') {
