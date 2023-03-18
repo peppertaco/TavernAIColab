@@ -22,12 +22,12 @@
         //console.log(encode("dsfs").length); // [258, 18798, 995]
     </script>
 	<style>
-	#openai_max_context{
+	#openai_max_context, #scale_max_context, #scale_max_tokens {
 		margin-left: 10px;
 		margin-bottom: 20px;
 	}
 	
-	#openai_max_context_counter{
+	#openai_max_context_counter, #scale_max_context_counter, #scale_max_tokens_counter {
 		margin-bottom: 0px;
 	}
 	
@@ -107,11 +107,9 @@
     
     
     <!--<div style="cursor: pointer;opacity: 0.1;"><img src="img/donut.png" style="width: 25px;height: 25px;bottom: 2px;left: 2px;position: absolute; "><div style="position: absolute; bottom: 6px;left: 28px;"><h4 style="margin-bottom: 0px"><i>Donuts</i></h4></div></div>-->
-    <div id="bg2">
-        <a class="opt" id="option_regenerate" accesskey="r"><img src="img/regenerate.png" height="25px" width="25px" id="regenerate" style = "margin-top: 10px; margin-left: 10px; cursor: pointer; opacity: 0.6" >
-		<a class="opt" id="option_delete_mes" accesskey="s"><img src="img/del_mes.png" height="25px" width="25px" id="delete_mes" style = "cursor: pointer; opacity: 0.6">
-		</a>
-	</div>
+    <div id="bg1"></div>
+    <div id="bg2"></div>
+    
     <div id="shadow_popup">
         <div id="dialogue_popup">
             <div id="dialogue_popup_text"><h3>text</h3></div>
@@ -357,13 +355,35 @@
                 <div id="online_status5">
                     <div id="online_status_indicator5"></div><div id="online_status_text5">No connection...</div>
                 </div>
-                <p style="white-space: normal;">Scale doesn't have a way to confirm that your key is correct. If you see "Valid" here but you still can't send prompts, confirm your key/url.</p>
-                <p style="white-space: normal;"><strong>
-                    Scale supports absolutely no settings, so none of this shit does anything.<br>
+                <p style="white-space: normal;"><strong>IMPORTANT:&nbsp;</strong>
+                    Scale offers no way to check whether your key is correct. If you see "Valid" here but you still can't send prompts,
+                    confirm your key/url.</p>
+                <p style="white-space: normal;"><strong>Context Settings:&nbsp;</strong>If you are using GPT-4, you can select up to
+                    7750
+                    tokens of context. Replies will take
+                    longer to generate.</p>
+                <div id="scale_max_context_block">
+                    <h4>Scale Context Size</h4>
+                    <h5 id="scale_max_context_counter">select</h5>
+                    <input type="range" id="scale_max_context" name="volume" min="512" max="7750" step="1">
+                    <h4>Scale Max Response Length</h4>
+                    <h5 id="scale_max_tokens_counter">select</h5>
+                    <input type="range" id="scale_max_tokens" name="volume" min="100" max="4096" step="1">
+                    <p style="white-space: normal; padding-left:8px;padding-right:8px;margin-top:-12px">
+                        This value must match the Spellbook deployment's
+                        "Maximum Tokens" setting or you may send prompts that are too large.
+                        <br>
+                        <span style="color: darksalmon; font-weight: bold;">
+                            If you don't know what this means, leave it at 400.
+                        </span>
+                    </p>
+                </div>
+                <p style="white-space: normal;"><strong>Model Parameters:&nbsp;</strong>
+                    Scale doesn't support adjusting model parameters from the API.
                     <br>
                     You can set up your own custom scale app to tweak the system prompt and model parameters, then deploy it and replace the `api_scale` URL in server.js with your own.
                 </strong></p>
-                <div style="opacity: 0.5;">
+                <div style=display:none;">
                     <h4>Preset settings</h4><h5>Selecting settings</h5>
                     <select id="settings_perset_scale" class="option_select_right_menu">
                         <option value="gui">Default</option>
@@ -491,8 +511,8 @@
                         <a id="option_select_chat"><img src="img/book6.png" width="20" height="20" style="opacity: 0.0;"><img src="img/book6.png" style="width: 21px;height: 21px;position: absolute;top: 59px;left: 15px; opacity: 0.5;">Select chats</a><!--<img src="img/book6.png" style="width: 21px;height: 21px;position: absolute;top: 14px;left: 16px; opacity: 0.5;">Select chat</a>-->
                         
                         <hr>
-                        <a id="option_delete_mes2"><img src="img/del_mes.png" width="20" height="20">Delete message</a>
-                        <a id="option_regenerate2"><img src="img/regenerate.png" width="20" height="20">Regenerate</a>
+                        <a id="option_delete_mes"><img src="img/del_mes.png" width="20" height="20">Delete message</a>
+                        <a id="option_regenerate"><img src="img/regenerate.png" width="20" height="20">Regenerate</a>
                         </div>
                     </div>
                 </div>
