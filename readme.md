@@ -1,13 +1,12 @@
 fork to:
 
+https://github.com/TavernAI/TavernAIColab<br>
 https://github.com/hisacat/TavernAIScaleExt<br>
 https://github.com/nai-degen/TavernAIScale<br>
 https://github.com/kimovoid/TavernAI<br>
 
 
 ### TavernAI is a adventure atmospheric chat (KoboldAI, NovelAI, Pygmalion)
-Examples of interface and output:
-<br><img src="readme/1.png" height="200" /><img src="readme/4.png" height="200" /><img src="readme/5.png" height="200" />
 
 [TavernAI Download](https://github.com/TavernAI/TavernAI/archive/refs/heads/main.zip)<br>
 [TavernAI Run Online](https://colab.research.google.com/github/TavernAI/TavernAI/blob/main/colab/GPU.ipynb)<br><br>
@@ -40,9 +39,7 @@ Examples of interface and output:
 
 ## Tips
 Use this button to edit the message<br><br>
-<img src="readme/3.png" width="600" /><br><br>
 If the message is not finished, you can simply send the request again, TavernAI will understand that this is a continuation. <br>(Works with KoboldAI and NovelAI models, not with Pygmalion)<br>
-<br><img src="readme/2.png" width="600" />
 ## Additional materials
 https://www.reddit.com/user/Crataco/comments/zuowi9/opensource_chatbot_companions/
 ## For contacts
