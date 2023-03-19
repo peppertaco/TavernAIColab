@@ -1,8 +1,8 @@
 fork to:
 
-https://github.com/hisacat/TavernAIScaleExt
-https://github.com/nai-degen/TavernAIScale
-https://github.com/kimovoid/TavernAI
+https://github.com/hisacat/TavernAIScaleExt<br>
+https://github.com/nai-degen/TavernAIScale<br>
+https://github.com/kimovoid/TavernAI<br>
 
 
 ### TavernAI is a adventure atmospheric chat (KoboldAI, NovelAI, Pygmalion)
