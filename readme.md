@@ -1,4 +1,4 @@
-fork to:
+Forked from:
 
 https://github.com/TavernAI/TavernAIColab<br>
 https://github.com/hisacat/TavernAIScaleExt<br>
