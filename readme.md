@@ -1,11 +1,3 @@
-fork to:
-
-https://github.com/TavernAI/TavernAIColab<br>
-https://github.com/hisacat/TavernAIScaleExt<br>
-https://github.com/nai-degen/TavernAIScale<br>
-https://github.com/kimovoid/TavernAI<br>
-
-
 ### TavernAI is a adventure atmospheric chat (KoboldAI, NovelAI, Pygmalion)
 
 [TavernAI Download](https://github.com/TavernAI/TavernAI/archive/refs/heads/main.zip)<br>
