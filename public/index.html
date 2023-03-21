@@ -107,11 +107,8 @@
     
     
     <!--<div style="cursor: pointer;opacity: 0.1;"><img src="img/donut.png" style="width: 25px;height: 25px;bottom: 2px;left: 2px;position: absolute; "><div style="position: absolute; bottom: 6px;left: 28px;"><h4 style="margin-bottom: 0px"><i>Donuts</i></h4></div></div>-->
-	<div id="bg2">
-        <a class="opt" id="option_regenerate2" accesskey="r"><img src="img/regenerate.png" height="25px" width="25px" id="regenerate" style = "margin-top: 10px; margin-left: 10px; cursor: pointer; opacity: 0.6" >
-		<a class="opt" id="option_delete_mes2" accesskey="s"><img src="img/del_mes.png" height="25px" width="25px" id="delete_mes" style = "cursor: pointer; opacity: 0.6">
-		</a>
-	</div>
+	<div id="bg2"></div>
+	<div id="bg3"></div>
     <div id="shadow_popup">
         <div id="dialogue_popup">
             <div id="dialogue_popup_text"><h3>text</h3></div>
@@ -186,6 +183,19 @@
 
         </div>
     </div>
+    <div id="bg_menu">
+        <div id="logo_block"><div id="bg_menu_button"><img src="img/tri.png"></div></div>
+        <div id="bg_menu_content">
+            <form id="form_bg_download"  action="javascript:void(null);" method="post" enctype="multipart/form-data">
+                <label class="input-file">
+                <input type="file" id="add_bg_button" name="avatar" accept="image/png, image/jpeg, image/jpg, image/gif, image/bmp">
+                <span class="bg_example_but_load" ><img src='img/addbg3.png'></span>           
+   
+                </label>
+            </form>
+            
+        </div>  
+    </div>	
     <input type="checkbox" id="nav-toggle" hidden>
 
     <nav class="nav">
