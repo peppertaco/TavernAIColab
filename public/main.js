@@ -152,7 +152,7 @@ const MEMORY_PROMPT_PREFIX = "Remember"
 var memory_prompt = ""
 
 const AUTHORS_NOTE_INSTER_ORDER = 0; // 0 is last.
-const formatAuthorsNote = (note) => `[${note}]`; // `[Author's Note: ${note}]`;
+const formatAuthorsNote = (note) => `${note}`;
 var authors_note = "";
 
 //css
