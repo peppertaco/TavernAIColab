@@ -1,7 +1,7 @@
 based on:
 
 https://github.com/TavernAI/TavernAIColab<br>
-https://github.com/CncAnon1/TavernAITurbo
+https://github.com/CncAnon1/TavernAITurbo<br>
 https://github.com/nai-degen/TavernAIScale<br>
 https://github.com/hisacat/TavernAIScaleExt<br>
 https://github.com/kimovoid/TavernAI<br>
