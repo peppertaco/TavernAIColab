@@ -1125,48 +1125,69 @@ app.post("/generate_scale", jsonParser, function(request, response_generate_scal
      },
    };
    
-   axios(config)
-   .then(function (response) {
-       console.log("generate_scale response", response.status);
-       if (response.status <= 299) {
-            console.log(response.data);
-            response_generate_scale.send(response.data);
-       } else if (response.status == 400) {
-            console.log('Validation error');
-            response_generate_scale.send({ error: true });
-       } else if (response.status == 401) {
-            console.log('Access Token is incorrect');
-            response_generate_scale.send({ error: true });
-       } else if (response.status == 402) {
-            console.log('An active subscription is required to access this endpoint');
-            response_generate_scale.send({ error: true });
-       } else if (response.status == 500 || response.status == 409) {
-            console.log(response.data);
-            response_generate_scale.send({ error: true });
-       }
-   })
-   .catch(function (error) {
-       if(error.response){
-           if (request.body.stream) {
-               error.response.data.on('data', chunk => {
-                   console.log(chunk.toString());
-               });                  
-           } else {
-                console.log("generate_scale promise rejected");
-                console.log({
-                    message: error.message,
-                    method: error.config.method,
-                    code: error.code,
-                    status: error.response.status,
-                    url: error.config.url,
-                    headers: error.config.headers,
-                })
-                console.log("response headers:", JSON.stringify(error.response.headers, null, 2));
-                console.log("response data:", error.response.data);
-           }
-       }
-       response_generate_scale.send({ error: true });
-   });
+    const runRequestWithRetries = (retriesSoFar = 0) => {
+        axios(config)
+            .then(function (response) {
+                console.log("generate_scale response", response.status);
+                if (response.status <= 299) {
+                    console.log(response.data);
+                    response_generate_scale.send(response.data);
+                } else if (response.status == 400) {
+                    console.log('Validation error');
+                    response_generate_scale.send({ error: true });
+                } else if (response.status == 401) {
+                    console.log('Access Token is incorrect');
+                    response_generate_scale.send({ error: true });
+                } else if (response.status == 402) {
+                    console.log('An active subscription is required to access this endpoint');
+                    response_generate_scale.send({ error: true });
+                } else if (response.status == 500 || response.status == 409) {
+                    console.log(response.data);
+                    response_generate_scale.send({ error: true });
+                }
+            })
+            .catch(function (error) {
+                if(error.response){
+                    if (request.body.stream) {
+                        error.response.data.on('data', chunk => {
+                            console.log(chunk.toString());
+                        });
+                    } else {
+                        console.log("generate_scale promise rejected");
+
+                        console.log({
+                            message: error.message,
+                            method: error.config.method,
+                            code: error.code,
+                            status: error.response.status,
+                            statusText: error.response.statusText,
+                            url: error.config.url,
+                            headers: error.config.headers,
+                        })
+
+                        if (error.response.status == 504) {
+                            // Cloudflare kills connection after 60 seconds
+                            // people keep thinking this is a timeout they need to
+                            // increase, but it's entirely on Cloudflare's end
+                            console.error(error.response.statusText);
+                            console.error("Scale is overloaded and your connection was killed by Cloudflare after 60 seconds.");
+                            console.log("you may be able to see the output appear in the Scale dashboard in a few minutes.");
+                            console.log("\x1b[31m%s\x1b[0m", "there is nothing you can do to fix this.");
+                        } else {
+                            // just dump the whole response
+                            console.log("response data:", error.response.data);
+                        }
+                    }
+                }
+                if (retriesSoFar < 4) {
+                    console.log(`Retrying failed request, hang tight (attempt ${retriesSoFar}/3)`)
+                    runRequestWithRetries(retriesSoFar + 1)
+                } else {
+                    response_generate_scale.send({ error: true });
+                }
+            });
+    }
+    runRequestWithRetries()
 });
 
 app.post("/generate_openai", jsonParser, function(request, response_generate_openai = response){
