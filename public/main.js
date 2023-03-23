@@ -3176,7 +3176,7 @@ async function getStatusOpen() {
             dataType: "json",
             contentType: "application/json",
             success: function (data) {
-                if (!('error' in data)) online_status = 'Valid';
+                if (!('error' in data)) online_status = '<font color = "green" style = "margin-left : 20px">Valid</font>';
                 resultCheckStatusOpen();
             },
             error: function (jqXHR, exception) {
