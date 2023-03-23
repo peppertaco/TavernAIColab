@@ -1,3 +1,5 @@
+Owari... da..
+
 based on:
 
 https://github.com/TavernAI/TavernAIColab<br>
