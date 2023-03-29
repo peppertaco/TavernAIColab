@@ -198,7 +198,7 @@
             var user_avatar = 'you.png';
             var temp = 0.5;
             var amount_gen = 80;
-            var max_context = 2048;//2048;
+            var max_context = 4000;//2048;
             var rep_pen = 1;
             var rep_pen_size = 100;
             
@@ -911,12 +911,12 @@
                     }
                     //chat2 = chat2.reverse();
                     var this_max_context = 1487;
-                    if(main_api == 'kobold') this_max_context = max_context;
+                    if(main_api == 'kobold') this_max_context = 4000-500;
                     if(main_api == 'novel'){
                         if(novel_tier === 1){
                             this_max_context = 1024;
                         }else{
-                            this_max_context = 2048-60;//fix for fat tokens 
+                            this_max_context = 4000-500;//fix for fat tokens 
                             if(model_novel == 'krake-v2'){
                                 this_max_context-=160;
                             }
@@ -3518,7 +3518,7 @@
                 </div>
                 <div id="max_context_block">
                     <h4>Context Size</h4><h5 id="max_context_counter">select</h5>
-                    <input type="range" id="max_context" name="volume" min="512" max="2048" step="1">
+                    <input type="range" id="max_context" name="volume" min="512" max="4000" step="1">
                 </div>
                 <h4>Anchors Order</h4><h5>Helps to increase the length of messages (<a href="/notes/9" target="_blank">?</a>)</h5>
                 <select id="anchor_order">
