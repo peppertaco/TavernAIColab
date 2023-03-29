@@ -9,7 +9,7 @@
 body {
     margin: 0;
    
-    background-color: rgb(10, 10, 10);
+    background-color: rgb(50, 50, 50);
     background-size: auto 100%;
     background-repeat: no-repeat;
     background-attachment: fixed;
@@ -288,7 +288,7 @@ code {
     bottom: 0;
     width: 100%;
     color: rgb(229, 224, 216);
-    background-color: #0e0e0e;
+    background-color: #1f1f1f;
     margin-bottom: 15px;
     margin-top: 10px;
 }
