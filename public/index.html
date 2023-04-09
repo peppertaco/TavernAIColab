@@ -270,7 +270,7 @@
                 <form  action="javascript:void(null);" method="post" enctype="multipart/form-data">
 
                 <h4>API url</h4><h5>Example: http://127.0.0.1:5000/api </h5>
-                <input id="api_url_text" name="api_url" class="text_pole" maxlength="500" size="35" value="" autocomplete="off">
+                <input id="api_url_text" name="api_url" class="text_pole" maxlength="500" size="25" value="" autocomplete="off">
                 <input id="api_button" type="submit" value="Connect">
                 <img id="api_loading" src="img/load.svg" >
                 </form>
@@ -297,7 +297,7 @@
                 <form  action="javascript:void(null);" method="post" enctype="multipart/form-data">
 
                     <h4>API key</h4><h5>Where to get (<a href="/notes/6" target="_blank">?</a>)</h5>
-                    <input id="api_key_novel" name="api_key_novel" class="text_pole" maxlength="500" size="35" value="" autocomplete="off">
+                    <input id="api_key_novel" name="api_key_novel" class="text_pole" maxlength="500" size="25" value="" autocomplete="off">
                     <input id="api_button_novel" type="submit" value="Connect">
                     <img id="api_loading_novel" src="img/load.svg" >
                 </form>
@@ -327,12 +327,17 @@
             <div id="openai_api" style="display: none;position: relative;">
                 <form  action="javascript:void(null);" method="post" enctype="multipart/form-data">
                     <h4>API key </h4>
-                    <input id="api_key_openai" name="api_key_openai" class="text_pole" maxlength="500" size="35" value="" autocomplete="off">
+                    <input id="api_key_openai" name="api_key_openai" class="text_pole" maxlength="500" size="25" value="" autocomplete="off">
                     <input id="api_button_openai" type="submit" value="Connect">
                     <img id="api_loading_openai" src="img/load.svg" >
                 </form>
                 <div id="online_status4">
                     <div id="online_status_indicator4"></div><div id="online_status_text4">No connection...</div>
+                <h4>Model</h4><h5>Selecting GPT model</h5>
+                <select id="model" class="option_select_right_menu" style='margin-bottom: 16px;'>
+                    <option value="gpt-3.5-turbo">GPT-3.5</option>
+                    <option value="gpt-4-0314">GPT-4</option>
+                </select>
                 </div>
                 <h4>Preset settings</h4><h5>Selecting settings</h5>
                 <select id="settings_perset_openai" class="option_select_right_menu">
@@ -435,7 +440,7 @@
                 </div>
 				<div id="openai_max_context_block">
                     <h4>OpenAI Context Size</h4><h5 id="openai_max_context_counter">select</h5>
-                    <input type="range" id="openai_max_context" name="volume" min="512" max="4095" step="1">
+                    <input type="range" id="openai_max_context" name="volume" min="512" max="8190" step="1">
                     <h4>OpenAI max response length (in tokens)</h4>
                     <input type="number" id="openai_max_tokens" name="openai_max_tokens" class="text_pole" min="50" max="1000" width="50">
                 </div>

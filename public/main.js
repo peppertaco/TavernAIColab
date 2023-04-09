@@ -84,7 +84,7 @@ var user_avatar = 'you.png';
 var temp = 0.5;
 var amount_gen = 80;
 var max_context = 2048;//2048;
-var openai_max_context = 4095;
+var openai_max_context = 4000;
 var scale_max_context = 7750;
 var rep_pen = 1;
 var rep_pen_size = 100;
@@ -117,7 +117,7 @@ var preset_settings_novel = 'Classic-Krake';
 var temp_openai = 1.0;
 var pres_pen_openai = 0;
 var freq_pen_openai = 0;
-var stream_openai = true;
+var stream_openai = false;
 
 var api_key_openai = "";
 var openai_settings;
@@ -1052,7 +1052,7 @@ async function Generate(type) {
             var generate_data = {
                 "messages": openai_msgs_tosend,
                 // todo: add setting for le custom model
-                "model": "gpt-3.5-turbo-0301",
+                "model": document.getElementById("model").value,
                 "temperature": parseFloat(temp_openai),
                 "frequency_penalty": parseFloat(freq_pen_openai),
                 "presence_penalty": parseFloat(pres_pen_openai),
@@ -2705,7 +2705,7 @@ async function getSettings(type) {//timer
                 freq_pen_openai = settings.freq_pen_openai ?? 0.7;
                 pres_pen_openai = settings.pres_pen_openai ?? 0.7;
                 stream_openai = settings.stream_openai ?? true;
-                openai_max_context = settings.openai_max_context ?? 4095;
+                openai_max_context = settings.openai_max_context ?? 4000;
                 openai_max_tokens = settings.openai_max_tokens ?? 300;
                 if (settings.nsfw_toggle !== undefined) nsfw_toggle = !!settings.nsfw_toggle;
                 if (settings.keep_example_dialogue !== undefined) keep_example_dialogue = !!settings.keep_example_dialogue;
