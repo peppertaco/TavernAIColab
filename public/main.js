@@ -1109,7 +1109,7 @@ async function Generate(type) {
             var generate_data = {
                 "messages": openai_msgs_tosend,
                 // todo: add setting for le custom model
-                "model": "gpt-3.5-turbo-0301",
+                "model": document.getElementById("model").value,
                 "temperature": parseFloat(temp_openai),
                 "frequency_penalty": parseFloat(freq_pen_openai),
                 "presence_penalty": parseFloat(pres_pen_openai),
